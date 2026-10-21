@@ -1,0 +1,36 @@
+[general]
+activation_phrase = "modo democracia"
+
+[assets]
+wallpaper = "Assets/flagSuperEarth_upscalemedia-transformed (1).png"
+logo = "Assets/Super_Earth_Logo.webp"
+app_icon = "Assets/Helldivers_2_(Icon).svg"
+ministry_icon = "Assets/Ministry_of_Defense_Icon.png"
+audio = "Assets/Helldivers 2 Main Theme - A Cup Of Liber-Tea.mp3"
+
+[sequence]
+duration_seconds = 13.2
+
+# Segundos que se muestra «DESPERTANDO DE CRIOSUEÑO» antes de abrir el juego.
+launch_delay_seconds = 2.0
+
+# Segundos tras mostrar «DESPERTANDO DE CRIOSUEÑO» para cambiarlo a «EN BATALLA».
+battle_text_delay_seconds = 300
+
+# Para abrir Helldivers 2 al terminar, ambos interruptores deben ser true.
+launch_game_after_sequence = true
+
+# Permite cambiar temporalmente el fondo en entornos compatibles.
+wallpaper_enabled = true
+
+# Restaura el fondo original al salir cuando la función está habilitada.
+restore_wallpaper_on_exit = true
+
+[voice]
+enabled = true
+recognition_engine = "vosk"
+model_path = "models/vosk-model-small-es-0.42"
+
+[steam]
+app_id = "553850"
+launch_enabled = true
