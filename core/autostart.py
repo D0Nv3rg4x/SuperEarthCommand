@@ -15,9 +15,24 @@ import argparse
 import sys
 from pathlib import Path
 
+from core import i18n
+from core.config import load_config
 from platforms import get_autostart_manager
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+CONFIG_FILE = PROJECT_DIR / "config.toml"
+
+
+def configure_language(project_dir: Path = PROJECT_DIR) -> str:
+    """Aplica el idioma de `config.toml` a la salida de la herramienta."""
+    try:
+        general = load_config(project_dir / "config.toml").get(
+            "general", {}
+        )
+    except (OSError, ValueError):
+        general = {}
+
+    return i18n.set_language(general.get("language"))
 
 
 def default_python_executable(project_dir: Path) -> Path:
@@ -41,20 +56,18 @@ def default_python_executable(project_dir: Path) -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=(
-            "Instala, retira o consulta el inicio automático de "
-            "Modo Democracia."
-        )
+        description=i18n.t("autostart.cli.description")
     )
     parser.add_argument(
         "action",
         choices=("install", "uninstall", "status"),
-        help="Acción que se desea realizar.",
+        help=i18n.t("autostart.cli.action_help"),
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_language()
     args = build_parser().parse_args(argv)
 
     python_executable = default_python_executable(PROJECT_DIR)
@@ -62,36 +75,50 @@ def main(argv: list[str] | None = None) -> int:
 
     if not manager.is_supported():
         print(
-            "El inicio automático no está disponible en esta plataforma: "
-            f"{manager.unsupported_reason()}",
+            i18n.t(
+                "autostart.cli.unsupported",
+                reason=manager.unsupported_reason(),
+            ),
             file=sys.stderr,
         )
         return 1
 
     if args.action == "status":
         installed = manager.is_installed()
-        print(f"Gestor: {manager.name}")
-        print(f"Estado: {'instalado' if installed else 'no instalado'}")
-        print(f"Ubicación: {manager.location()}")
-        print(f"Intérprete: {python_executable}")
+        state = i18n.t(
+            "autostart.cli.state.installed"
+            if installed
+            else "autostart.cli.state.not_installed"
+        )
+        print(i18n.t("autostart.cli.manager", name=manager.name))
+        print(i18n.t("autostart.cli.state", state=state))
+        print(i18n.t("autostart.cli.location", path=manager.location()))
+        print(
+            i18n.t(
+                "autostart.cli.interpreter", path=python_executable
+            )
+        )
         return 0
 
     if args.action == "install":
         ok, error = manager.install()
         if not ok:
             print(
-                f"No se pudo instalar el inicio automático: {error}",
+                i18n.t(
+                    "autostart.cli.install_failed", error=error
+                ),
                 file=sys.stderr,
             )
             return 1
 
-        print(f"Inicio automático instalado ({manager.name}).")
-        print(f"Ubicación: {manager.location()}")
-        print(f"Intérprete: {python_executable}")
+        print(i18n.t("autostart.cli.installed", name=manager.name))
+        print(i18n.t("autostart.cli.location", path=manager.location()))
         print(
-            "La aplicación se iniciará oculta en la bandeja al iniciar "
-            "sesión."
+            i18n.t(
+                "autostart.cli.interpreter", path=python_executable
+            )
         )
+        print(i18n.t("autostart.cli.hidden"))
         if manager.last_note:
             print(manager.last_note)
         return 0
@@ -99,12 +126,14 @@ def main(argv: list[str] | None = None) -> int:
     ok, error = manager.uninstall()
     if not ok:
         print(
-            f"No se pudo retirar el inicio automático: {error}",
+            i18n.t(
+                "autostart.cli.uninstall_failed", error=error
+            ),
             file=sys.stderr,
         )
         return 1
 
-    print(f"Inicio automático retirado ({manager.name}).")
+    print(i18n.t("autostart.cli.uninstalled", name=manager.name))
     if manager.last_note:
         print(manager.last_note)
     return 0

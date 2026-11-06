@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from core import i18n
+
 from .base import AutostartManager, WallpaperBackend
 
 READ_SCRIPT = (
@@ -46,11 +48,8 @@ class MacOSWallpaperBackend(WallpaperBackend):
 
     def unsupported_reason(self) -> str:
         if sys.platform != "darwin":
-            return "El adaptador de macOS solo funciona en macOS."
-        return (
-            "No se encontró osascript. El cambio de fondo de macOS "
-            "no está disponible."
-        )
+            return i18n.t("platform.macos.only_macos")
+        return i18n.t("platform.macos.osascript_missing")
 
     def current_image(self) -> Path | None:
         """Lee la imagen del primer escritorio; hay límites con varios monitores."""
@@ -86,7 +85,9 @@ class MacOSWallpaperBackend(WallpaperBackend):
         path = Path(image).expanduser()
 
         if not path.is_file():
-            return False, f"No se encontró la imagen de fondo: {path}"
+            return False, i18n.t(
+                "platform.macos.image_missing", path=path
+            )
 
         try:
             result = subprocess.run(
@@ -97,14 +98,17 @@ class MacOSWallpaperBackend(WallpaperBackend):
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            return False, f"No se pudo cambiar el fondo en macOS: {exc}"
+            return False, i18n.t(
+                "platform.macos.apply_failed", error=exc
+            )
 
         if result.returncode != 0:
             details = (result.stderr or result.stdout).strip()
             return False, (
                 details
-                or "osascript terminó con código "
-                f"{result.returncode} al cambiar el fondo."
+                or i18n.t(
+                    "platform.macos.exit_code", code=result.returncode
+                )
             )
 
         return True, None
@@ -135,8 +139,8 @@ class MacOSAutostartManager(AutostartManager):
 
     def unsupported_reason(self) -> str:
         if sys.platform != "darwin":
-            return "El inicio automático con LaunchAgent solo está disponible en macOS."
-        return "No se encontró launchctl; el inicio automático no está disponible."
+            return i18n.t("platform.macos.autostart_only_macos")
+        return i18n.t("platform.macos.launchctl_missing")
 
     def location(self) -> Path:
         return self.plist_file
@@ -168,15 +172,14 @@ class MacOSAutostartManager(AutostartManager):
             return False, self.unsupported_reason()
 
         if not self.app_script.is_file():
-            return False, (
-                "No se encontró app.py en el proyecto: "
-                f"{self.app_script}"
+            return False, i18n.t(
+                "autostart.error.app_missing", path=self.app_script
             )
 
         if not self.python_executable.is_file():
-            return False, (
-                "No se encontró el intérprete de Python indicado: "
-                f"{self.python_executable}"
+            return False, i18n.t(
+                "autostart.error.python_missing",
+                path=self.python_executable,
             )
 
         data = {
@@ -198,9 +201,10 @@ class MacOSAutostartManager(AutostartManager):
                 plistlib.dump(data, file)
             os.chmod(self.plist_file, 0o644)
         except OSError as exc:
-            return False, (
-                "No se pudo crear el LaunchAgent: "
-                f"{self.plist_file}: {exc}"
+            return False, i18n.t(
+                "autostart.error.plist_write",
+                path=self.plist_file,
+                error=exc,
             )
 
         self._bootout()
@@ -215,7 +219,9 @@ class MacOSAutostartManager(AutostartManager):
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             self.plist_file.unlink(missing_ok=True)
-            return False, f"No se pudo ejecutar launchctl: {exc}"
+            return False, i18n.t(
+                "autostart.error.launchctl_run", error=exc
+            )
 
         if result.returncode != 0:
             # Compatibilidad con versiones anteriores de macOS.
@@ -231,13 +237,18 @@ class MacOSAutostartManager(AutostartManager):
                     result.stderr or result.stdout or ""
                 ).strip()
                 self.plist_file.unlink(missing_ok=True)
-                return False, (
-                    "launchctl no pudo cargar el LaunchAgent. "
-                    f"{details or 'Comprueba los permisos y la sesión gráfica.'}"
+                return False, i18n.t(
+                    "platform.macos.launchctl_failed",
+                    detail=(
+                        details
+                        or i18n.t(
+                            "platform.macos.launchctl_detail"
+                        )
+                    ),
                 )
 
-            self.last_note = (
-                "El LaunchAgent se cargó con el mecanismo antiguo de launchctl."
+            self.last_note = i18n.t(
+                "autostart.note.legacy_launchctl"
             )
 
         return True, None
@@ -258,15 +269,16 @@ class MacOSAutostartManager(AutostartManager):
             pass
 
         if not self.plist_file.exists():
-            self.last_note = "El inicio automático no estaba instalado."
+            self.last_note = i18n.t("autostart.note.not_installed")
             return True, None
 
         try:
             self.plist_file.unlink()
         except OSError as exc:
-            return False, (
-                "No se pudo eliminar el LaunchAgent: "
-                f"{self.plist_file}: {exc}"
+            return False, i18n.t(
+                "autostart.error.plist_delete",
+                path=self.plist_file,
+                error=exc,
             )
 
         return True, None

@@ -15,6 +15,8 @@ from pathlib import Path
 from platforms import get_wallpaper_backend
 from platforms.base import WallpaperBackend
 
+from core import i18n
+
 
 def state_directory() -> Path:
     """Devuelve la carpeta de estado propia de cada plataforma."""
@@ -100,9 +102,8 @@ class WallpaperController:
             original = Path(data["original_image"]).expanduser()
 
             if not original.is_file():
-                return False, (
-                    "El fondo original guardado ya no existe: "
-                    f"{original}"
+                return False, i18n.t(
+                    "wallpaper.recovery.original_gone", path=original
                 )
 
             ok, error = backend.apply(original)
@@ -114,8 +115,8 @@ class WallpaperController:
             return False, error
 
         except (OSError, ValueError, KeyError, TypeError) as exc:
-            return False, (
-                f"No se pudo recuperar el fondo anterior: {exc}"
+            return False, i18n.t(
+                "wallpaper.recovery.failed", error=exc
             )
 
     def activate(self) -> tuple[bool, str | None]:
@@ -127,9 +128,8 @@ class WallpaperController:
             return True, None
 
         if self.target_image is None or not self.target_image.is_file():
-            self.last_error = (
-                "No se encontró la imagen de Super Tierra: "
-                f"{self.target_image}"
+            self.last_error = i18n.t(
+                "wallpaper.error.image_missing", path=self.target_image
             )
             return False, self.last_error
 
@@ -140,9 +140,9 @@ class WallpaperController:
         original = self.backend.current_image()
 
         if original is None:
-            self.last_error = (
-                "No pude identificar una imagen de fondo local mediante "
-                f"{self.backend.name}. Por seguridad, no se cambiará el fondo."
+            self.last_error = i18n.t(
+                "wallpaper.error.no_current_image",
+                backend=self.backend.name,
             )
             return False, self.last_error
 
@@ -165,9 +165,8 @@ class WallpaperController:
                 encoding="utf-8",
             )
         except OSError as exc:
-            self.last_error = (
-                "No se pudo guardar una copia del fondo original: "
-                f"{exc}"
+            self.last_error = i18n.t(
+                "wallpaper.error.save_state", error=exc
             )
             return False, self.last_error
 
@@ -207,9 +206,8 @@ class WallpaperController:
             try:
                 self.state_file.unlink(missing_ok=True)
             except OSError as exc:
-                self.last_error = (
-                    "No se pudo eliminar el estado pendiente del fondo: "
-                    f"{exc}"
+                self.last_error = i18n.t(
+                    "wallpaper.error.delete_state", error=exc
                 )
                 return False, self.last_error
 
@@ -230,16 +228,14 @@ class WallpaperController:
                 )
                 original = Path(data["original_image"]).expanduser()
             except (OSError, ValueError, KeyError, TypeError) as exc:
-                self.last_error = (
-                    "No se pudo leer la copia del fondo original: "
-                    f"{exc}"
+                self.last_error = i18n.t(
+                    "wallpaper.error.read_state", error=exc
                 )
                 return False, self.last_error
 
         if original is None or not original.is_file():
-            self.last_error = (
-                "El archivo del fondo original no está disponible: "
-                f"{original}"
+            self.last_error = i18n.t(
+                "wallpaper.error.original_missing", path=original
             )
             return False, self.last_error
 

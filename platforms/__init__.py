@@ -10,6 +10,8 @@ import sys
 
 from pathlib import Path
 
+from core import i18n
+
 from .base import (
     AutostartManager,
     UnsupportedWallpaperBackend,
@@ -34,7 +36,10 @@ def get_wallpaper_backend(platform_name: str | None = None) -> WallpaperBackend:
         return LinuxWallpaperBackend()
 
     return UnsupportedWallpaperBackend(
-        f"Sistema no soportado para cambiar el fondo: {platform_name}."
+        i18n.t(
+            "platform.unsupported.system_wallpaper",
+            platform=platform_name,
+        )
     )
 
 

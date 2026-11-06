@@ -30,7 +30,9 @@ El inicio automático de Linux usa XDG autostart y no necesita systemd.
 - `vosk` y `sounddevice`, incluidos en `requirements-voice.txt`.
 - PortAudio disponible para `sounddevice`. En CachyOS se instala con el gestor
   de paquetes del sistema si aún no está presente.
-- Modelo local `vosk-model-small-es-0.42` en `models/`.
+- Modelo local de Vosk en `models/`. El modelo depende del idioma:
+  `vosk-model-small-es-0.42` para español y `vosk-model-small-en-us-0.15`
+  para inglés.
 - Micrófono de entrada configurado en el sistema.
 
 Vosk puede no tener una distribución compatible con todas las versiones de
@@ -102,16 +104,21 @@ validadas.
    python -m pip install -r requirements-voice.txt
    ```
 
-4. Descarga el modelo de voz. En Linux, el script incluido comprueba si ya
-   existe y usa `curl` y `unzip`:
+4. Descarga el modelo de voz del idioma que vayas a usar. En Linux, el script
+   incluido comprueba si ya existe y usa `curl` y `unzip`:
 
    ```sh
-   bash scripts/instalar_modelo_voz.sh
+   bash scripts/instalar_modelo_voz.sh es   # español
+   bash scripts/instalar_modelo_voz.sh en   # inglés
    ```
 
-   En Windows o macOS, descarga el ZIP del modelo desde el enlace indicado en
-   `scripts/instalar_modelo_voz.sh` y extrae la carpeta
-   `vosk-model-small-es-0.42` dentro de `models/`.
+   Sin argumento instala el modelo español. En Windows o macOS, descarga el ZIP
+   del modelo desde el enlace indicado en `scripts/instalar_modelo_voz.sh` y
+   extrae la carpeta (`vosk-model-small-es-0.42` o
+   `vosk-model-small-en-us-0.15`) dentro de `models/`.
+
+   Si usas `language = "en"`, necesitas el modelo inglés; el español no
+   reconoce la frase «democracy mode».
 
 5. Comprueba que la instalación funciona:
 
@@ -132,7 +139,8 @@ de recursos pueden ser relativas al proyecto, absolutas o comenzar por `~`.
 
 | Clave | Valor actual | Efecto |
 |---|---|---|
-| `activation_phrase` | `"modo democracia"` | Frase que activa la secuencia. Se normaliza (mayúsculas, tildes y signos no importan). Si está vacía, la voz se desactiva. |
+| `language` | `"es"` | Idioma de la interfaz, la bandeja y los mensajes: `"es"`, `"en"` o `"auto"`. `"auto"` sigue el idioma del sistema y, si no hay catálogo, usa inglés. Se aplica al reiniciar. |
+| `activation_phrase` | ausente | Frase que activa la secuencia. Si se omite, usa la del idioma (`modo democracia` / `democracy mode`). Se normaliza (mayúsculas, tildes y signos no importan). Si está presente y vacía, la voz se desactiva. |
 
 ### `[assets]`
 
@@ -161,7 +169,7 @@ de recursos pueden ser relativas al proyecto, absolutas o comenzar por `~`.
 |---|---|---|
 | `enabled` | `true` | Activa la escucha. Si es `false`, no se abre el micrófono y la interfaz sigue funcionando. |
 | `recognition_engine` | `"vosk"` | Solo se admite `vosk`; cualquier otro valor desactiva la voz con un aviso. |
-| `model_path` | `models/vosk-model-small-es-0.42` | Ruta del modelo, relativa al proyecto o absoluta. Si está vacía, se usa la ruta predeterminada. |
+| `model_path` | `""` | Ruta del modelo, relativa al proyecto o absoluta. Si está vacía, usa el modelo del idioma activo: `models/vosk-model-small-es-0.42` o `models/vosk-model-small-en-us-0.15`. |
 
 ### `[steam]`
 
@@ -202,6 +210,49 @@ launch_game_after_sequence = false
 
 La aplicación no instala dependencias, no descarga el modelo y no modifica el
 escritorio ni el inicio automático sin una orden explícita.
+
+## Idiomas
+
+Idiomas incluidos:
+
+| Código | Interfaz | Frase de activación | Modelo de voz |
+|---|---|---|---|
+| `es` | Español | `modo democracia` | `vosk-model-small-es-0.42` |
+| `en` | English | `democracy mode` | `vosk-model-small-en-us-0.15` |
+
+Cambiar al inglés:
+
+```toml
+[general]
+language = "en"
+```
+
+Después:
+
+1. Instala el modelo inglés con `bash scripts/instalar_modelo_voz.sh en`.
+2. Reinicia la aplicación. El idioma no cambia en caliente.
+3. Comprueba que la terminal, la ventana, la bandeja y los avisos aparecen en
+   inglés.
+
+Notas:
+
+- `language = "auto"` usa el idioma del sistema (`LANG`, `LC_ALL` o
+  `LANGUAGE`). Si el sistema usa un idioma sin catálogo, la aplicación cae a
+  inglés.
+- Los registros de la terminal siguen el mismo idioma que la interfaz.
+- La herramienta `python -m core.autostart` también lee `language` de
+  `config.toml`.
+- Las capturas del README están en español; la interfaz inglesa usa los mismos
+  elementos con textos más cortos.
+
+### Añadir un idioma
+
+1. Copia `locales/es.json` a `locales/<código>.json` (por ejemplo `fr.json`).
+2. Traduce los valores sin cambiar las claves ni los marcadores `{...}`.
+3. Añade el código a `DEFAULT_MODEL_PATHS` en `core/config.py` solo si ese
+   idioma tiene un modelo de Vosk; si no, deja `[voice] enabled = false`.
+4. Ejecuta las pruebas: verifican que todos los catálogos tengan las mismas
+   claves y los mismos marcadores.
 
 ## Inicio automático
 
@@ -256,6 +307,27 @@ python -m core.autostart uninstall
 - La aplicación escribe en la terminal el motivo exacto por el que desactiva la
   voz.
 
+### La voz en inglés no reconoce la frase
+
+- Comprueba que `language = "en"` y que existe
+  `models/vosk-model-small-en-us-0.15`.
+- Instálalo con `bash scripts/instalar_modelo_voz.sh en`; el modelo español no
+  sirve para reconocer «democracy mode».
+- Si definiste `activation_phrase` manualmente, debe estar en el idioma del
+  modelo (por ejemplo, `"democracy mode"`).
+- La frase reconoce variantes normalizadas: mayúsculas, tildes y signos no
+  importan, pero el orden de las palabras sí.
+
+### La interfaz aparece en otro idioma
+
+- Revisa `[general] language` en `config.toml`. Los valores válidos son `es`,
+  `en` y `auto`.
+- Un valor desconocido cae a español; `auto` sin catálogo cae a inglés.
+- El idioma se lee al arrancar: cierra y vuelve a abrir la aplicación.
+- Si cambiaste `language` pero la frase de voz sigue sonando en el idioma
+  anterior, revisa si `activation_phrase` está definida explícitamente; esa
+  clave tiene prioridad sobre la frase predeterminada del idioma.
+
 ### El fondo no cambia
 
 - En Linux solo está implementado KDE Plasma 6. Comprueba:
@@ -299,10 +371,11 @@ python -m core.autostart uninstall
 ## Comprobaciones manuales
 
 Las pruebas automatizadas cubren configuración, recursos, voz simulada,
-adaptadores de fondo, inicio automático y flujo de interfaz. Siguen pendientes
-las comprobaciones con hardware real: frase con micrófono, reproducción de
-audio, cambio y restauración del fondo visible, apertura de Steam, bandeja y
-autostart tras cerrar sesión. Consulta [`docs/TESTING.md`](docs/TESTING.md).
+adaptadores de fondo, inicio automático, flujo de interfaz y paridad de los
+catálogos de idioma. Siguen pendientes las comprobaciones con hardware real:
+frase con micrófono en español e inglés, reproducción de audio, cambio y
+restauración del fondo visible, apertura de Steam, bandeja y autostart tras
+cerrar sesión. Consulta [`docs/TESTING.md`](docs/TESTING.md).
 
 ## Archivos locales y privacidad
 

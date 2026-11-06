@@ -17,6 +17,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QThread, Signal
 
+from core import i18n
+
 SAMPLE_RATE = 16000
 BLOCK_SIZE = 8000
 
@@ -52,10 +54,9 @@ def check_dependencies() -> tuple[bool, str | None]:
             missing.append(f"{module} ({type(exc).__name__}: {exc})")
 
     if missing:
-        return False, (
-            "Faltan dependencias de voz: "
-            + ", ".join(missing)
-            + ". Instala requirements-voice.txt en el entorno virtual."
+        return False, i18n.t(
+            "voice.error.dependencies",
+            missing=", ".join(missing),
         )
 
     return True, None
@@ -64,16 +65,12 @@ def check_dependencies() -> tuple[bool, str | None]:
 def check_model(model_path: Path | str | None) -> tuple[bool, str | None]:
     """Comprueba que el modelo existe y contiene los archivos necesarios."""
     if model_path is None:
-        return False, "No hay una ruta de modelo de voz configurada."
+        return False, i18n.t("voice.error.model_path_missing")
 
     path = Path(model_path).expanduser()
 
     if not path.is_dir():
-        return False, (
-            "No se encontró el modelo local de Vosk:\n"
-            f"{path}\n"
-            "Descárgalo con scripts/instalar_modelo_voz.sh."
-        )
+        return False, i18n.t("voice.error.model_missing", path=path)
 
     missing = [
         relative
@@ -82,12 +79,10 @@ def check_model(model_path: Path | str | None) -> tuple[bool, str | None]:
     ]
 
     if missing:
-        return False, (
-            "El modelo de Vosk está incompleto:\n"
-            f"{path}\n"
-            "Faltan: "
-            + ", ".join(missing)
-            + ". Vuelve a descargarlo con scripts/instalar_modelo_voz.sh."
+        return False, i18n.t(
+            "voice.error.model_incomplete",
+            path=path,
+            missing=", ".join(missing),
         )
 
     return True, None
@@ -98,26 +93,22 @@ def check_input_device() -> tuple[bool, str | None]:
     try:
         sounddevice = importlib.import_module("sounddevice")
     except Exception as exc:
-        return False, (
-            "No se pudo cargar sounddevice: "
-            f"{type(exc).__name__}: {exc}"
+        return False, i18n.t(
+            "voice.error.sounddevice",
+            detail=f"{type(exc).__name__}: {exc}",
         )
 
     try:
         device = sounddevice.query_devices(kind="input")
         channels = int(device.get("max_input_channels", 0) or 0)
     except Exception as exc:
-        return False, (
-            "No hay un micrófono de entrada disponible. "
-            "Conecta uno y vuelve a iniciar la aplicación. "
-            f"Detalle: {type(exc).__name__}: {exc}"
+        return False, i18n.t(
+            "voice.error.no_input",
+            detail=f"{type(exc).__name__}: {exc}",
         )
 
     if channels < 1:
-        return False, (
-            "El dispositivo de entrada predeterminado no admite captura "
-            "de audio. Selecciona otro micrófono en el sistema."
-        )
+        return False, i18n.t("voice.error.input_no_capture")
 
     return True, None
 
@@ -128,7 +119,7 @@ def check_voice_availability(
 ) -> tuple[bool, str | None]:
     """Comprobación previa completa, sin cargar el modelo ni abrir el micro."""
     if not normalize_text(phrase):
-        return False, "La frase de activación está vacía en config.toml."
+        return False, i18n.t("voice.error.phrase_empty")
 
     for check in (
         check_dependencies,
@@ -149,9 +140,16 @@ class VoiceListener(QThread):
     status_changed = Signal(str)
     error_occurred = Signal(str)
 
-    def __init__(self, phrase: str, model_path: Path, parent=None):
+    def __init__(
+        self,
+        phrase: str,
+        model_path: Path,
+        display_phrase: str | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.phrase = normalize_text(phrase)
+        self.display_phrase = (display_phrase or phrase).strip()
         self.model_path = Path(model_path).expanduser().resolve()
         self._stop_requested = False
         self._failed = False
@@ -197,7 +195,7 @@ class VoiceListener(QThread):
 
     def _report_mic_status(self, status) -> None:
         """Evita que un problema de audio genere una secuencia ilimitada."""
-        message = f"MICRÓFONO: {status}"
+        message = i18n.t("voice.status.microphone", status=status)
         now = time.monotonic()
 
         if (
@@ -211,14 +209,14 @@ class VoiceListener(QThread):
 
     def run(self):
         if not self.phrase:
-            self._report_failure(
-                "La frase de activación está vacía en config.toml."
-            )
+            self._report_failure(i18n.t("voice.error.phrase_empty"))
             return
 
         model_ok, model_error = check_model(self.model_path)
         if not model_ok:
-            self._report_failure(model_error or "Modelo de voz no válido.")
+            self._report_failure(
+                model_error or i18n.t("voice.error.model_invalid")
+            )
             return
 
         try:
@@ -229,38 +227,42 @@ class VoiceListener(QThread):
             SetLogLevel = vosk.SetLogLevel
         except Exception as exc:
             self._report_failure(
-                "Faltan dependencias de voz. Instala requirements-voice.txt "
-                f"en el entorno virtual. Detalle: {type(exc).__name__}: {exc}"
+                i18n.t(
+                    "voice.error.worker_dependencies",
+                    detail=f"{type(exc).__name__}: {exc}",
+                )
             )
             return
 
         if self._stop_requested:
-            self.status_changed.emit("ESCUCHA DETENIDA")
+            self.status_changed.emit(i18n.t("voice.status.stopped"))
             return
 
         try:
             SetLogLevel(-1)
-            self.status_changed.emit("CARGANDO RECONOCIMIENTO DE VOZ LOCAL…")
+            self.status_changed.emit(i18n.t("voice.status.loading"))
             model = Model(str(self.model_path))
             recognizer = KaldiRecognizer(model, SAMPLE_RATE)
             recognizer.SetWords(False)
         except Exception as exc:
             if not self._stop_requested:
                 self._report_failure(
-                    "No se pudo cargar el modelo de voz local. "
-                    "Comprueba que el modelo esté completo y sea compatible "
-                    f"con la versión de Vosk instalada. Detalle: "
-                    f"{type(exc).__name__}: {exc}"
+                    i18n.t(
+                        "voice.error.load_failed",
+                        detail=f"{type(exc).__name__}: {exc}",
+                    )
                 )
             return
 
         if self._stop_requested:
-            self.status_changed.emit("ESCUCHA DETENIDA")
+            self.status_changed.emit(i18n.t("voice.status.stopped"))
             return
 
         device_ok, device_error = check_input_device()
         if not device_ok:
-            self._report_failure(device_error or "Micrófono no disponible.")
+            self._report_failure(
+                device_error or i18n.t("voice.error.unavailable")
+            )
             return
 
         def audio_callback(indata, frames, time_info, status):
@@ -289,7 +291,10 @@ class VoiceListener(QThread):
                 callback=audio_callback,
             ):
                 self.status_changed.emit(
-                    "ESCUCHA ACTIVA · DI «MODO DEMOCRACIA»"
+                    i18n.t(
+                        "voice.status.active",
+                        phrase=self.display_phrase.upper(),
+                    )
                 )
                 armed = True
 
@@ -318,12 +323,13 @@ class VoiceListener(QThread):
         except Exception as exc:
             if not self._stop_requested:
                 self._report_failure(
-                    "No se pudo iniciar o mantener la escucha del micrófono. "
-                    "Comprueba el dispositivo de entrada y los permisos de "
-                    f"audio. Detalle: {type(exc).__name__}: {exc}"
+                    i18n.t(
+                        "voice.error.listen_failed",
+                        detail=f"{type(exc).__name__}: {exc}",
+                    )
                 )
         finally:
             # Si falló, el mensaje de error ya explica el estado; no lo
             # sobrescribimos con «ESCUCHA DETENIDA».
             if not self._failed:
-                self.status_changed.emit("ESCUCHA DETENIDA")
+                self.status_changed.emit(i18n.t("voice.status.stopped"))

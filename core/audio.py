@@ -11,6 +11,8 @@ from PySide6.QtMultimedia import (
     QMediaPlayer,
 )
 
+from core import i18n
+
 
 class AudioController:
     """Controla la reproducción de la banda sonora local."""
@@ -37,7 +39,12 @@ class AudioController:
         self._fade.finished.connect(self._on_fade_finished)
 
     def _on_error(self, error, message) -> None:
-        print(f"Error de audio: {error} {message}", file=sys.stderr)
+        print(
+            i18n.t(
+                "audio.log.error", error=error, message=message
+            ),
+            file=sys.stderr,
+        )
 
     def _on_fade_finished(self) -> None:
         # Solo se detiene si el volumen llegó realmente a cero; así una

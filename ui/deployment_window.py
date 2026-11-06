@@ -50,6 +50,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.audio import AudioController
+from core.i18n import t
 
 
 ARROWS = {
@@ -59,29 +60,48 @@ ARROWS = {
     Qt.Key.Key_Right: "→",
 }
 
-# Secuencias inspiradas en las estratagemas mostradas en la referencia.
-STRATAGEMS = [
-    {"name": "ANDANADA GATLING ORBITAL", "sequence": ["→", "→", "←", "↑", "↑"], "success": "ANDANADA GATLING AUTORIZADA", "message": "Super destructor listo"},
-    {"name": "ATAQUE AÉREO DE GAS DEL ÁGUILA", "sequence": ["↑", "→", "←", "→"], "success": "ATAQUE DE GAS AUTORIZADO", "message": "Águila lista para el ataque"},
-    {"name": "ATAQUE AÉREO EAGLE", "sequence": ["↑", "→", "↓", "→"], "success": "ATAQUE AÉREO AUTORIZADO", "message": "Águila lista para el ataque"},
-    {"name": "ATAQUE ORBITAL DE GAS", "sequence": ["→", "→", "↓", "→"], "success": "ATAQUE ORBITAL AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "ATAQUE ORBITAL DE PRECISIÓN", "sequence": ["→", "→", "↑"], "success": "ATAQUE DE PRECISIÓN AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "ATAQUE ORBITAL EMS", "sequence": ["→", "→", "←", "↓"], "success": "ATAQUE EMS AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "CAÑÓN DE RIELES ORBITAL", "sequence": ["↓", "↑", "↓", "→", "←"], "success": "CAÑÓN DE RIELES AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "BOMBA DE RACIMO EAGLE", "sequence": ["↑", "→", "↓", "↓", "→"], "success": "BOMBA DE RACIMO AUTORIZADA", "message": "Águila lista para el ataque"},
-    {"name": "BOMBA EAGLE DE 500 KG", "sequence": ["↑", "→", "↓", "↓", "↓"], "success": "BOMBA DE 500 KG AUTORIZADA", "message": "Águila lista para el ataque"},
-    {"name": "BOMBARDEO ORBITAL DE 120 MM HE", "sequence": ["→", "→", "↓", "←", "→", "↓"], "success": "BOMBARDEO AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "BOMBARDEO ORBITAL DE 380 MM HE", "sequence": ["→", "↓", "↑", "↑", "←", "↓", "↓"], "success": "BOMBARDEO PESADO AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "BOMBARDEO ORBITAL DE HUMO", "sequence": ["→", "→", "↓", "↑"], "success": "COBERTURA DE HUMO AUTORIZADA", "message": "Super destructor listo"},
-    {"name": "BOMBARDEO ORBITAL DE NAPALM", "sequence": ["→", "→", "↓", "←", "→", "↑"], "success": "BOMBARDEO DE NAPALM AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "BOMBARDEO ORBITAL PROGRESIVO", "sequence": ["→", "→", "→", "↓", "→", "↓"], "success": "BOMBARDEO PROGRESIVO AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "LÁSER ORBITAL", "sequence": ["→", "↓", "↑", "→", "↓"], "success": "LÁSER ORBITAL AUTORIZADO", "message": "Super destructor listo"},
-    {"name": "PASADA DE AMETRALLAMIENTO EAGLE", "sequence": ["↑", "→", "→"], "success": "PASADA DE AMETRALLAMIENTO AUTORIZADA", "message": "Águila lista para el ataque"},
-    {"name": "PODS DE COHETES EAGLE DE 110 MM", "sequence": ["↑", "↑", "→", "←"], "success": "PODS DE COHETES AUTORIZADOS", "message": "Águila lista para el ataque"},
+# Definiciones estables de las estratagemas. Los textos visibles se resuelven
+# al construir la ventana, cuando el idioma ya está configurado.
+STRATAGEM_DEFS = [
+    {"id": "gatling", "sequence": ["→", "→", "←", "↑", "↑"], "message": "destroyer"},
+    {"id": "eagle_gas", "sequence": ["↑", "→", "←", "→"], "message": "eagle"},
+    {"id": "eagle_air", "sequence": ["↑", "→", "↓", "→"], "message": "eagle"},
+    {"id": "orbital_gas", "sequence": ["→", "→", "↓", "→"], "message": "destroyer"},
+    {"id": "precision", "sequence": ["→", "→", "↑"], "message": "destroyer"},
+    {"id": "ems", "sequence": ["→", "→", "←", "↓"], "message": "destroyer"},
+    {"id": "railcannon", "sequence": ["↓", "↑", "↓", "→", "←"], "message": "destroyer"},
+    {"id": "cluster", "sequence": ["↑", "→", "↓", "↓", "→"], "message": "eagle"},
+    {"id": "eagle_500", "sequence": ["↑", "→", "↓", "↓", "↓"], "message": "eagle"},
+    {"id": "barrage_120", "sequence": ["→", "→", "↓", "←", "→", "↓"], "message": "destroyer"},
+    {"id": "barrage_380", "sequence": ["→", "↓", "↑", "↑", "←", "↓", "↓"], "message": "destroyer"},
+    {"id": "smoke", "sequence": ["→", "→", "↓", "↑"], "message": "destroyer"},
+    {"id": "napalm", "sequence": ["→", "→", "↓", "←", "→", "↑"], "message": "destroyer"},
+    {"id": "walking", "sequence": ["→", "→", "→", "↓", "→", "↓"], "message": "destroyer"},
+    {"id": "laser", "sequence": ["→", "↓", "↑", "→", "↓"], "message": "destroyer"},
+    {"id": "strafing", "sequence": ["↑", "→", "→"], "message": "eagle"},
+    {"id": "rocket_pods", "sequence": ["↑", "↑", "→", "←"], "message": "eagle"},
 ]
 
-WAKE_TEXT = "DESPERTANDO DE CRIOSUEÑO"
-BATTLE_TEXT = "EN BATALLA"
+MESSAGE_KEYS = {
+    "destroyer": "stratagem.message.destroyer",
+    "eagle": "stratagem.message.eagle",
+}
+
+
+def build_stratagems() -> list[dict]:
+    """Devuelve las estratagemas con los textos del idioma activo."""
+    return [
+        {
+            "id": definition["id"],
+            "name": t(f"stratagem.{definition['id']}.name"),
+            "success": t(f"stratagem.{definition['id']}.success"),
+            "message": t(MESSAGE_KEYS[definition["message"]]),
+            "sequence": definition["sequence"],
+        }
+        for definition in STRATAGEM_DEFS
+    ]
+
+
 WAKE_GREEN = "#3dff7c"
 
 
@@ -126,10 +146,9 @@ class BackgroundPanel(QWidget):
 class HeaderBar(QWidget):
     """Cabecera tipo terminal: panel biselado, indicador de enlace y reloj."""
 
-    TITLE = "SUPER EARTH  //  COMANDO DE DESPLIEGUE"
-
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.title = t("ui.header.title")
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._blink_on = True
@@ -194,10 +213,14 @@ class HeaderBar(QWidget):
         title_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, title_spacing)
         painter.setFont(title_font)
         painter.setPen(QColor("#f0c46a"))
-        painter.drawText(QRectF(0, 0, w, h), Qt.AlignmentFlag.AlignCenter, self.TITLE)
+        painter.drawText(
+            QRectF(0, 0, w, h),
+            Qt.AlignmentFlag.AlignCenter,
+            self.title,
+        )
 
         # Los textos laterales solo se dibujan si caben junto al título.
-        title_w = QFontMetricsF(title_font).horizontalAdvance(self.TITLE)
+        title_w = QFontMetricsF(title_font).horizontalAdvance(self.title)
         side_spacing = 1.5
         side_font = QFont("Sans Serif", 7, QFont.Weight.Bold)
         side_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, side_spacing)
@@ -205,7 +228,7 @@ class HeaderBar(QWidget):
         metrics = QFontMetricsF(side_font)
         available = (w - title_w) / 2.0 - 56
 
-        left_text = "EN LÍNEA"
+        left_text = t("ui.header.online")
         if metrics.horizontalAdvance(left_text) + 14 <= available:
             x = 52.0
             if self._blink_on:
@@ -285,7 +308,11 @@ class SpinningLogo(QWidget):
         if self._pixmap.isNull():
             fp.setPen(QColor("#f4d18b"))
             fp.setFont(QFont("Sans Serif", 14, QFont.Weight.Bold))
-            fp.drawText(QRectF(0, 0, w, h), Qt.AlignmentFlag.AlignCenter, "SUPER EARTH")
+            fp.drawText(
+                QRectF(0, 0, w, h),
+                Qt.AlignmentFlag.AlignCenter,
+                t("ui.logo.fallback"),
+            )
         else:
             fp.drawPixmap(self._target, self._pixmap, QRectF(self._pixmap.rect()))
         fp.resetTransform()
@@ -481,6 +508,7 @@ class DeploymentWindow(QMainWindow):
         battle_delay_seconds: float = 300.0,
     ):
         super().__init__()
+        self.stratagems = build_stratagems()
         self.wallpaper_path = wallpaper_path
         self.logo_path = logo_path
         self.audio_path = audio_path
@@ -511,7 +539,7 @@ class DeploymentWindow(QMainWindow):
         self.error_flash_timer.timeout.connect(self.clear_error_flash)
         self.audio = AudioController()
 
-        self.setWindowTitle("Modo Democracia")
+        self.setWindowTitle(t("app.name"))
         # Ventana compacta para no cubrir innecesariamente el fondo de escritorio.
         self.setMinimumSize(500, 450)
         self.resize(650, 530)
@@ -568,19 +596,19 @@ class DeploymentWindow(QMainWindow):
         self.logo = SpinningLogo(self.logo_path)
         layout.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        title = QLabel("MODO DEMOCRACIA")
+        title = QLabel(t("ui.title"))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Sans Serif", 22, QFont.Weight.Bold))
         title.setStyleSheet("color:#f5f0df;")
         layout.addWidget(title)
 
-        subtitle = QLabel("LA LIBERTAD NO SE ENTREGA. SE DESPLIEGA.")
+        subtitle = QLabel(t("app.tagline"))
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("color:#e7b65b; font-size:12px; letter-spacing:2px;")
         layout.addWidget(subtitle)
         layout.addSpacing(1)
 
-        self.status_label = QLabel("EN ESPERA DE AUTORIZACIÓN DEL OPERADOR")
+        self.status_label = QLabel(t("ui.status.idle"))
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet("color:white; font-size:11px; font-weight:bold;")
         layout.addWidget(self.status_label)
@@ -611,7 +639,7 @@ class DeploymentWindow(QMainWindow):
         wake_page = QWidget()
         wake_layout = QVBoxLayout(wake_page)
         wake_layout.setContentsMargins(0, 0, 0, 0)
-        self.wake_label = QLabel(WAKE_TEXT)
+        self.wake_label = QLabel(t("ui.wake"))
         self.wake_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         wake_font = QFont("Sans Serif", 20, QFont.Weight.Bold)
         wake_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2.0)
@@ -674,7 +702,7 @@ class DeploymentWindow(QMainWindow):
 
         buttons = QHBoxLayout()
         buttons.addStretch(1)
-        self.cancel_button = QPushButton("✕  CANCELAR DESPLIEGUE")
+        self.cancel_button = QPushButton(t("ui.button.cancel"))
         self.cancel_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.cancel_button.setMinimumHeight(34)
         self.cancel_button.setMinimumWidth(190)
@@ -692,7 +720,7 @@ class DeploymentWindow(QMainWindow):
 
         footer = QHBoxLayout()
         footer.addStretch(1)
-        ministry_text = QLabel("APROBADO POR EL MINISTERIO DE GUERRA")
+        ministry_text = QLabel(t("app.footer"))
         ministry_text.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         ministry_text.setStyleSheet("color:#d0c9b6; font-size:9px; letter-spacing:1px;")
         footer.addWidget(ministry_text)
@@ -739,16 +767,19 @@ class DeploymentWindow(QMainWindow):
             self.status_label.setText(message)
 
     def on_voice_error(self, message: str):
-        print(f"Error de reconocimiento de voz: {message}", file=sys.stderr)
+        print(
+            t("ui.log.voice_error", error=message),
+            file=sys.stderr,
+        )
         if self.stage == "idle":
-            self.status_label.setText("ESCUCHA POR VOZ NO DISPONIBLE")
+            self.status_label.setText(t("ui.status.voice_error"))
             self.hint_label.setText(message)
             self.hint_label.setStyleSheet("color:#ffb0a8; font-size:11px;")
 
     def on_voice_disabled(self, message: str):
         """Muestra por qué la voz no está activa sin tratarlo como un fallo."""
         if self.stage == "idle":
-            self.status_label.setText("ESCUCHA POR VOZ DESACTIVADA")
+            self.status_label.setText(t("ui.status.voice_disabled"))
             self.hint_label.setText(message)
             self.hint_label.setStyleSheet("color:#d0c9b6; font-size:11px;")
 
@@ -770,7 +801,7 @@ class DeploymentWindow(QMainWindow):
         self.bar_fade.stop()
         self.bar_opacity.setOpacity(1.0)
         self.bar_page.show()
-        self.wake_label.setText(WAKE_TEXT)
+        self.wake_label.setText(t("ui.wake"))
         self.wake_label.hide()
         self.wake_opacity.setOpacity(1.0)
 
@@ -787,8 +818,8 @@ class DeploymentWindow(QMainWindow):
         self.main_elapsed_ms = 0
         self.session_warnings = []
         self.progress.set_progress(0.0)
-        self.cancel_button.setText("✕  CANCELAR DESPLIEGUE")
-        self.status_label.setText("INICIANDO PROTOCOLO DE DESPLIEGUE...")
+        self.cancel_button.setText(t("ui.button.cancel"))
+        self.status_label.setText(t("ui.status.starting"))
         self.status_label.setStyleSheet("color:white; font-size:13px; font-weight:bold;")
         self.stratagem_title.setText("")
         self.game_hide_timer.stop()
@@ -803,12 +834,15 @@ class DeploymentWindow(QMainWindow):
                 self.wallpaper_changed = True
             elif wallpaper_error:
                 self.session_warnings.append(
-                    "Aviso: no se pudo cambiar el fondo. El protocolo continuará sin modificarlo."
+                    t("ui.warning.wallpaper")
                 )
-                print(f"No se pudo cambiar el fondo: {wallpaper_error}", file=sys.stderr)
+                print(
+                    t("ui.log.wallpaper_failed", error=wallpaper_error),
+                    file=sys.stderr,
+                )
 
         if self.audio_path is None or not self.audio.play(self.audio_path):
-            self.session_warnings.append("Aviso: no se encontró el audio. El protocolo continuará.")
+            self.session_warnings.append(t("ui.warning.audio"))
 
         # El progreso principal corre por su cuenta: los aciertos del minijuego
         # nunca lo incrementan, lo pausan ni lo adelantan.
@@ -851,11 +885,11 @@ class DeploymentWindow(QMainWindow):
         self.stratagem_title.setText("")
         self.animate_game_panel(False)
         self.progress.set_progress(1.0)
-        self.status_label.setText("¡DESPLIEGUE AUTORIZADO! POR LA SUPER TIERRA.")
+        self.status_label.setText(t("ui.status.deployed"))
         self.status_label.setStyleSheet("color:#f0df36; font-size:15px; font-weight:bold;")
         self.hint_label.setStyleSheet("color:#e9dc39; font-size:13px; font-weight:bold;")
-        self.hint_label.setText("Todos los sistemas locales están preparados.")
-        self.cancel_button.setText("✕  CERRAR")
+        self.hint_label.setText(t("ui.hint.ready"))
+        self.cancel_button.setText(t("ui.button.close"))
         # El fondo de Super Tierra permanece activo tras completar la barra.
         # Se restaura únicamente cuando el usuario cierra/cancela la ventana.
 
@@ -879,7 +913,7 @@ class DeploymentWindow(QMainWindow):
 
     def show_battle_text(self):
         if self.stage == "complete":
-            self.wake_label.setText(BATTLE_TEXT)
+            self.wake_label.setText(t("ui.battle"))
 
     def toggle_wake_blink(self):
         on = self.wake_opacity.opacity() < 0.5
@@ -903,14 +937,17 @@ class DeploymentWindow(QMainWindow):
                     start_new_session=True,
                 )
             elif not QDesktopServices.openUrl(QUrl(url)):
-                raise OSError("No se encontró Steam ni un manejador para steam://")
-            self.hint_label.setText("Abriendo Helldivers 2 mediante Steam…")
+                raise OSError(t("ui.error.no_steam_handler"))
+            self.hint_label.setText(t("ui.hint.launching"))
             # La música baja de a poco para no mezclarse con el audio del juego.
             self.audio.fade_out(self.AUDIO_FADE_MS)
         except OSError as exc:
-            print(f"No se pudo abrir Helldivers 2: {exc}", file=sys.stderr)
+            print(
+                t("ui.log.launch_failed", error=exc),
+                file=sys.stderr,
+            )
             self.hint_label.setStyleSheet("color:#ffb0a8; font-size:12px; font-weight:bold;")
-            self.hint_label.setText("No se pudo abrir Helldivers 2. Comprueba que Steam esté instalado.")
+            self.hint_label.setText(t("ui.hint.launch_failed"))
 
     def animate_game_panel(self, visible: bool):
         """Expande/contrae el bloque del minijuego sin saltos de layout."""
@@ -940,15 +977,23 @@ class DeploymentWindow(QMainWindow):
             return
         # Elegir una nueva estratagema aleatoria y evitar repetir la anterior
         # de inmediato siempre que haya otras disponibles.
-        choices = [item for item in STRATAGEMS if item["name"] != self.previous_stratagem_name]
-        self.current_stratagem = random.choice(choices or STRATAGEMS)
+        choices = [
+            item
+            for item in self.stratagems
+            if item["name"] != self.previous_stratagem_name
+        ]
+        self.current_stratagem = random.choice(
+            choices or self.stratagems
+        )
         self.previous_stratagem_name = self.current_stratagem["name"]
         self.input_index = 0
         self.stage = "stratagem"
         self.between_elapsed_ms = 0
         self.status_label.setStyleSheet("color:white; font-size:13px; font-weight:bold;")
         self.hint_label.setStyleSheet("color:#d0c9b6; font-size:11px;")
-        self.status_label.setText(f"SISTEMA EN ESPERA: {self.current_stratagem['name']}")
+        self.status_label.setText(
+            t("ui.status.waiting", name=self.current_stratagem["name"])
+        )
         self.stratagem_title.setText(self.current_stratagem["name"])
         self.sequence_keys.set_sequence(self.current_stratagem["sequence"])
         self.keys_panel.setStyleSheet(self.normal_panel_style())
@@ -963,7 +1008,12 @@ class DeploymentWindow(QMainWindow):
             self.keys_panel.setStyleSheet(self.normal_panel_style())
             self.sequence_keys.set_sequence(self.current_stratagem["sequence"], 0)
             self.status_label.setStyleSheet("color:white; font-size:13px; font-weight:bold;")
-            self.status_label.setText(f"SISTEMA EN ESPERA: {self.current_stratagem['name']}")
+            self.status_label.setText(
+                t(
+                    "ui.status.waiting",
+                    name=self.current_stratagem["name"],
+                )
+            )
 
     def keyPressEvent(self, event):
         if self.stage == "stratagem":
@@ -993,7 +1043,7 @@ class DeploymentWindow(QMainWindow):
                 QFrame#keysPanel { background:rgba(140,10,18,230);
                     border:1px solid #ff424a; border-radius:12px; }
             """)
-            self.status_label.setText("ERROR DE SECUENCIA")
+            self.status_label.setText(t("ui.status.sequence_error"))
             self.status_label.setStyleSheet("color:#ff555d; font-size:13px; font-weight:bold;")
             self.error_flash_timer.start(300)
             return
@@ -1019,7 +1069,10 @@ class DeploymentWindow(QMainWindow):
         if restored:
             self.wallpaper_changed = False
         elif error:
-            print(f"No se pudo restaurar el fondo original: {error}", file=sys.stderr)
+            print(
+                t("ui.log.wallpaper_restore_failed", error=error),
+                file=sys.stderr,
+            )
 
     def cancel_sequence(self):
         """Cancela/restaura la secuencia y oculta la ventana; la escucha continúa."""
@@ -1030,14 +1083,14 @@ class DeploymentWindow(QMainWindow):
         self.minigame_active = False
         self.stage = "idle"
         self.progress.set_progress(0.0)
-        self.status_label.setText("EN ESPERA DE AUTORIZACIÓN DEL OPERADOR")
+        self.status_label.setText(t("ui.status.idle"))
         self.status_label.setStyleSheet("color:white; font-size:11px; font-weight:bold;")
         self.stratagem_title.setText("")
         self.hint_label.setText("")
         self.hint_label.setStyleSheet("color:#d0c9b6; font-size:10px;")
         self.game_hide_timer.stop()
         self.animate_game_panel(False)
-        self.cancel_button.setText("✕  CANCELAR DESPLIEGUE")
+        self.cancel_button.setText(t("ui.button.cancel"))
         self.restore_wallpaper()
         self.hide()
 
@@ -1052,7 +1105,7 @@ class DeploymentWindow(QMainWindow):
         if self.voice_listener is not None and self.voice_listener.isRunning():
             if not self.voice_listener.stop():
                 print(
-                    "Advertencia: el hilo de voz no terminó a tiempo.",
+                    t("app.warning.voice_thread"),
                     file=sys.stderr,
                 )
 

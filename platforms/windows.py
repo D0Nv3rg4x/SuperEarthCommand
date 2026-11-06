@@ -11,6 +11,8 @@ import ctypes
 import sys
 from pathlib import Path
 
+from core import i18n
+
 from .base import AutostartManager, WallpaperBackend
 
 SPI_GETDESKWALLPAPER = 0x0073
@@ -30,8 +32,8 @@ class WindowsWallpaperBackend(WallpaperBackend):
 
     def unsupported_reason(self) -> str:
         if not sys.platform.startswith("win"):
-            return "El adaptador de Windows solo funciona en Windows."
-        return "No se pudo acceder a la API de configuración de Windows."
+            return i18n.t("platform.windows.only_windows")
+        return i18n.t("platform.windows.api_unavailable")
 
     def current_image(self) -> Path | None:
         """Lee la ruta del fondo actual mediante SPI_GETDESKWALLPAPER."""
@@ -63,7 +65,9 @@ class WindowsWallpaperBackend(WallpaperBackend):
         path = Path(image).expanduser()
 
         if not path.is_file():
-            return False, f"No se encontró la imagen de fondo: {path}"
+            return False, i18n.t(
+                "platform.windows.image_missing", path=path
+            )
 
         try:
             ok = ctypes.windll.user32.SystemParametersInfoW(
@@ -73,9 +77,9 @@ class WindowsWallpaperBackend(WallpaperBackend):
                 SPIF_UPDATEINIFILE | SPIF_SENDCHANGE,
             )
         except (AttributeError, OSError) as exc:
-            return False, (
-                "No se pudo llamar a la API de Windows para cambiar el fondo: "
-                f"{type(exc).__name__}: {exc}"
+            return False, i18n.t(
+                "platform.windows.api_failed",
+                detail=f"{type(exc).__name__}: {exc}",
             )
 
         if not ok:
@@ -83,10 +87,7 @@ class WindowsWallpaperBackend(WallpaperBackend):
                 code = ctypes.windll.kernel32.GetLastError()
             except (AttributeError, OSError):
                 code = 0
-            return False, (
-                "Windows rechazó el cambio de fondo "
-                f"(código de error {code}). Comprueba la ruta y los permisos."
-            )
+            return False, i18n.t("platform.windows.rejected", code=code)
 
         return True, None
 
@@ -102,7 +103,7 @@ class WindowsAutostartManager(AutostartManager):
         return sys.platform.startswith("win")
 
     def unsupported_reason(self) -> str:
-        return "El inicio automático del registro solo está disponible en Windows."
+        return i18n.t("platform.windows.autostart_only_windows")
 
     def location(self) -> str:
         return f"HKEY_CURRENT_USER\\{self.RUN_KEY}\\{self.VALUE_NAME}"
@@ -139,15 +140,14 @@ class WindowsAutostartManager(AutostartManager):
             return False, self.unsupported_reason()
 
         if not self.app_script.is_file():
-            return False, (
-                "No se encontró app.py en el proyecto: "
-                f"{self.app_script}"
+            return False, i18n.t(
+                "autostart.error.app_missing", path=self.app_script
             )
 
         if not self.python_executable.is_file():
-            return False, (
-                "No se encontró el intérprete de Python indicado: "
-                f"{self.python_executable}"
+            return False, i18n.t(
+                "autostart.error.python_missing",
+                path=self.python_executable,
             )
 
         import winreg
@@ -167,10 +167,7 @@ class WindowsAutostartManager(AutostartManager):
                     self._command(),
                 )
         except OSError as exc:
-            return False, (
-                "No se pudo crear la entrada de inicio automático: "
-                f"{exc}"
-            )
+            return False, i18n.t("autostart.error.registry_write", error=exc)
 
         return True, None
 
@@ -191,12 +188,9 @@ class WindowsAutostartManager(AutostartManager):
             ) as key:
                 winreg.DeleteValue(key, self.VALUE_NAME)
         except FileNotFoundError:
-            self.last_note = "El inicio automático no estaba instalado."
+            self.last_note = i18n.t("autostart.note.not_installed")
             return True, None
         except OSError as exc:
-            return False, (
-                "No se pudo eliminar la entrada de inicio automático: "
-                f"{exc}"
-            )
+            return False, i18n.t("autostart.error.registry_delete", error=exc)
 
         return True, None

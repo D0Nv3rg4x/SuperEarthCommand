@@ -2,8 +2,26 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL_DIR="$PROJECT_DIR/models/vosk-model-small-es-0.42"
-MODEL_URL="https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip"
+
+LANG_CODE="${1:-es}"
+
+case "$LANG_CODE" in
+  es)
+    MODEL_NAME="vosk-model-small-es-0.42"
+    MODEL_LABEL="español"
+    ;;
+  en)
+    MODEL_NAME="vosk-model-small-en-us-0.15"
+    MODEL_LABEL="inglés"
+    ;;
+  *)
+    echo "Idioma no soportado: $LANG_CODE. Usa 'es' o 'en'." >&2
+    exit 2
+    ;;
+esac
+
+MODEL_DIR="$PROJECT_DIR/models/$MODEL_NAME"
+MODEL_URL="https://alphacephei.com/vosk/models/$MODEL_NAME.zip"
 
 mkdir -p "$PROJECT_DIR/models"
 if [[ -d "$MODEL_DIR" ]]; then
@@ -23,10 +41,10 @@ TMP_DIR="$(mktemp -d)"
 cleanup() { rm -f "$TMP_ZIP"; rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
 
-echo "Descargando modelo de voz en español (puede ocupar decenas de MB)..."
+echo "Descargando modelo de voz en $MODEL_LABEL (puede ocupar decenas de MB)..."
 curl -fL --retry 2 "$MODEL_URL" -o "$TMP_ZIP"
 unzip -q "$TMP_ZIP" -d "$TMP_DIR"
-FOUND_MODEL="$TMP_DIR/vosk-model-small-es-0.42"
+FOUND_MODEL="$TMP_DIR/$MODEL_NAME"
 if [[ ! -d "$FOUND_MODEL" ]]; then
   echo "El ZIP descargado no contiene la carpeta esperada del modelo." >&2
   exit 1

@@ -13,6 +13,8 @@ voz, audio, fondo o inicio automático no impida usar el resto.
 | `core/voice.py` | Comprobaciones previas de Vosk/modelo/micrófono y `VoiceListener`, un `QThread` que escucha y emite señales. |
 | `core/wallpaper.py` | Controlador común: activa, restaura, recupera estado pendiente y guarda la imagen original. |
 | `core/audio.py` | Reproducción local y desvanecimiento del volumen con Qt Multimedia. |
+| `core/i18n.py` | Carga los catálogos `locales/*.json`, resuelve el idioma (`es`, `en`, `auto`) y traduce las claves con respaldo al español. |
+| `locales/` | Catálogos de textos visibles por idioma. Añadir un archivo añade un idioma. |
 | `core/autostart.py` | CLI `install`, `status` y `uninstall`; elige el gestor de la plataforma. |
 | `platforms/` | Adaptadores de fondo y de inicio automático por sistema operativo. |
 | `ui/deployment_window.py` | Interfaz, barra de progreso, estratagemas, estados de voz y lanzamiento de Steam. |
@@ -21,7 +23,7 @@ voz, audio, fondo o inicio automático no impida usar el resto.
 ## Flujo de arranque
 
 1. `app.py` comprueba que Python es 3.11 o superior.
-2. Carga `config.toml` y clasifica los recursos:
+2. Carga `config.toml`, aplica `[general].language` y clasifica los recursos:
    - el logo es obligatorio;
    - fondo, audio e iconos son opcionales y generan advertencias si faltan.
 3. Pregunta al adaptador de plataforma si el fondo es compatible.
@@ -46,9 +48,9 @@ restaura el fondo y cierra la ventana.
 - La barra principal avanza con un reloj monotónico y un `QTimer` de 16 ms.
 - Las estratagemas se eligen al azar; un error solo reinicia la estratagema
   actual y no altera la barra principal.
-- Al llegar al 100 %, la barra se desvanece, aparece
-  «DESPERTANDO DE CRIOSUEÑO» y, si corresponde, se programa el lanzamiento de
-  Steam y el cambio posterior a «EN BATALLA».
+- Al llegar al 100 %, la barra se desvanece, aparece el texto de despertar
+  («DESPERTANDO DE CRIOSUEÑO» / «WAKING FROM CRYOSLEEP») y, si corresponde, se
+  programa el lanzamiento de Steam y el cambio posterior a «EN BATALLA».
 - Cancelar con Esc o con el botón detiene la secuencia, detiene el audio,
   restaura el fondo y oculta la ventana.
 - Cerrar con la X solo oculta la ventana. La escucha continúa hasta que se elige

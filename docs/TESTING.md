@@ -33,6 +33,7 @@ python -m unittest tests.test_voice -v
 | `tests/test_platforms.py` | Selección de adaptador, detección de KDE Plasma 6, rechazo de otros escritorios, lectura del fondo y controlador común. |
 | `tests/test_autostart.py` | Instalación y retirada en un HOME temporal, archivos ajenos, rutas con espacios, LaunchAgent y selección de gestor. |
 | `tests/test_ui_flow.py` | Inicio de la secuencia, cancelación, barra de progreso, aciertos y errores de estratagemas, lanzamiento de Steam y audio ausente. |
+| `tests/test_i18n.py` | Paridad de claves y marcadores entre catálogos, selección de idioma, respaldo a español, textos ingleses, frase y modelo por idioma, y lectura del idioma en el autostart. |
 | `tests/test_project.py` | Comprobaciones básicas de identidad del proyecto. |
 
 Las pruebas de interfaz usan `QT_QPA_PLATFORM=offscreen`. No demuestran que la
@@ -50,13 +51,15 @@ ventana se vea correctamente en un escritorio real ni que el audio suene.
 - Rutas de recursos y de modelo relativas o absolutas.
 - Duraciones inválidas en la configuración.
 - Inicio automático no disponible, archivos ajenos y errores de creación.
+- Catálogo de idioma incompleto, clave desconocida o marcador sin valor.
 
 ## Comprobaciones manuales necesarias
 
 Estas pruebas no se pueden sustituir por las automatizadas:
 
 1. **Voz real:** iniciar `python -u app.py`, decir «Modo Democracia» y confirmar
-   que la secuencia se activa una sola vez.
+   que la secuencia se activa una sola vez. Repetir con `language = "en"`,
+   modelo inglés y la frase «democracy mode».
 2. **Audio real:** comprobar que suena la música y que baja al abrir el juego.
 3. **Fondo real:** confirmar que cambia al iniciar la secuencia y se restaura al
    cancelar o salir según `restore_wallpaper_on_exit`.
@@ -74,6 +77,7 @@ Estas pruebas no se pueden sustituir por las automatizadas:
 | Fecha | Entorno | Resultado |
 |---|---|---|
 | 2026-10-21 | CachyOS, KDE Plasma 6, Python 3.14.8 | 97 pruebas automatizadas correctas. Arranque, voz opcional simulada, fondo y autostart Linux con HOME temporal comprobados; la frase con micrófono real y el inicio de sesión real siguen pendientes de prueba manual. |
+| 2026-11-05 | CachyOS, KDE Plasma 6, Python 3.14.8 | 120 pruebas automatizadas correctas, incluida la paridad español/inglés. Arranque en inglés verificado en modo offscreen; la frase real en ambos idiomas sigue pendiente. |
 | Pendiente | Windows real | Sin ejecutar. |
 | Pendiente | macOS real | Sin ejecutar. |
 

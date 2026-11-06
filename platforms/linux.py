@@ -13,6 +13,8 @@ import shlex
 import sys
 from pathlib import Path
 
+from core import i18n
+
 from .base import AutostartManager, WallpaperBackend
 from .kde import KDEWallpaperBackend
 
@@ -35,7 +37,11 @@ class LinuxWallpaperBackend(WallpaperBackend):
             return ""
 
         desktops = sorted(KDEWallpaperBackend._desktops())
-        current = ", ".join(desktops) if desktops else "escritorio desconocido"
+        current = (
+            ", ".join(desktops)
+            if desktops
+            else i18n.t("platform.linux.unknown_desktop")
+        )
 
         if any(
             "kde" in desktop or "plasma" in desktop
@@ -43,10 +49,7 @@ class LinuxWallpaperBackend(WallpaperBackend):
         ):
             return self._kde.unsupported_reason()
 
-        return (
-            "No hay un adaptador de fondo para el escritorio Linux actual "
-            f"({current}). Solo se ha implementado KDE Plasma 6."
-        )
+        return i18n.t("platform.linux.no_adapter", desktop=current)
 
     def current_image(self) -> Path | None:
         if not self.is_supported():
@@ -109,7 +112,7 @@ class LinuxAutostartManager(AutostartManager):
         return sys.platform.startswith("linux")
 
     def unsupported_reason(self) -> str:
-        return "El inicio automático XDG solo está disponible en Linux."
+        return i18n.t("platform.linux.autostart_only_linux")
 
     def location(self) -> Path:
         return self.desktop_file
@@ -154,15 +157,14 @@ class LinuxAutostartManager(AutostartManager):
             return False, self.unsupported_reason()
 
         if not self.app_script.is_file():
-            return False, (
-                "No se encontró app.py en el proyecto: "
-                f"{self.app_script}"
+            return False, i18n.t(
+                "autostart.error.app_missing", path=self.app_script
             )
 
         if not self.python_executable.is_file():
-            return False, (
-                "No se encontró el intérprete de Python indicado: "
-                f"{self.python_executable}"
+            return False, i18n.t(
+                "autostart.error.python_missing",
+                path=self.python_executable,
             )
 
         launcher_existed = self.launcher.exists()
@@ -171,16 +173,16 @@ class LinuxAutostartManager(AutostartManager):
             try:
                 existing = self.launcher.read_text(encoding="utf-8")
             except OSError as exc:
-                return False, (
-                    "No se pudo leer el lanzador existente: "
-                    f"{self.launcher}: {exc}"
+                return False, i18n.t(
+                    "autostart.error.launcher_read",
+                    path=self.launcher,
+                    error=exc,
                 )
 
             if not self._is_our_launcher(existing):
-                return False, (
-                    "Ya existe un archivo ajeno en "
-                    f"{self.launcher}. Muévelo o elimínalo antes de "
-                    "instalar el inicio automático."
+                return False, i18n.t(
+                    "autostart.error.foreign_launcher",
+                    path=self.launcher,
                 )
 
         desktop_existed = self.desktop_file.exists()
@@ -191,16 +193,16 @@ class LinuxAutostartManager(AutostartManager):
                     encoding="utf-8"
                 )
             except OSError as exc:
-                return False, (
-                    "No se pudo leer la entrada de inicio existente: "
-                    f"{self.desktop_file}: {exc}"
+                return False, i18n.t(
+                    "autostart.error.desktop_read",
+                    path=self.desktop_file,
+                    error=exc,
                 )
 
             if not self._is_our_desktop(existing_desktop):
-                return False, (
-                    "Ya existe una entrada ajena en "
-                    f"{self.desktop_file}. Muévela o elimínala antes de "
-                    "instalar el inicio automático."
+                return False, i18n.t(
+                    "autostart.error.foreign_desktop",
+                    path=self.desktop_file,
                 )
 
         launcher_content = (
@@ -223,7 +225,7 @@ class LinuxAutostartManager(AutostartManager):
             "[Desktop Entry]\n"
             "Type=Application\n"
             "Name=Modo Democracia\n"
-            "Comment=Escucha la frase de activación de Super Tierra\n"
+            f"Comment={i18n.t('autostart.desktop.comment')}\n"
             f"Exec={desktop_exec}\n"
             f"TryExec={self.launcher}\n"
             f"Path={self.project_dir}\n"
@@ -260,10 +262,7 @@ class LinuxAutostartManager(AutostartManager):
                     self.desktop_file.unlink(missing_ok=True)
                 except OSError:
                     pass
-            return False, (
-                "No se pudo crear la configuración de inicio automático: "
-                f"{exc}"
-            )
+            return False, i18n.t("autostart.error.write", error=exc)
 
         return True, None
 
@@ -279,9 +278,10 @@ class LinuxAutostartManager(AutostartManager):
             try:
                 desktop = self.desktop_file.read_text(encoding="utf-8")
             except OSError as exc:
-                return False, (
-                    "No se pudo leer la entrada de inicio automático: "
-                    f"{self.desktop_file}: {exc}"
+                return False, i18n.t(
+                    "autostart.error.desktop_read",
+                    path=self.desktop_file,
+                    error=exc,
                 )
 
             if self._is_our_desktop(desktop):
@@ -289,23 +289,25 @@ class LinuxAutostartManager(AutostartManager):
                     self.desktop_file.unlink()
                     removed_something = True
                 except OSError as exc:
-                    return False, (
-                        "No se pudo eliminar la entrada de inicio automático: "
-                        f"{self.desktop_file}: {exc}"
+                    return False, i18n.t(
+                        "autostart.error.remove_desktop",
+                        path=self.desktop_file,
+                        error=exc,
                     )
             else:
-                self.last_note = (
-                    "Se conservó la entrada ajena que ya existía en "
-                    f"{self.desktop_file}."
+                self.last_note = i18n.t(
+                    "autostart.note.kept_desktop",
+                    path=self.desktop_file,
                 )
 
         if self.launcher.exists():
             try:
                 text = self.launcher.read_text(encoding="utf-8")
             except OSError as exc:
-                return False, (
-                    "No se pudo leer el lanzador para retirarlo: "
-                    f"{self.launcher}: {exc}"
+                return False, i18n.t(
+                    "autostart.error.read_launcher_for_removal",
+                    path=self.launcher,
+                    error=exc,
                 )
 
             if self._is_our_launcher(text):
@@ -313,18 +315,19 @@ class LinuxAutostartManager(AutostartManager):
                     self.launcher.unlink()
                     removed_something = True
                 except OSError as exc:
-                    return False, (
-                        "No se pudo eliminar el lanzador: "
-                        f"{self.launcher}: {exc}"
+                    return False, i18n.t(
+                        "autostart.error.remove_launcher",
+                        path=self.launcher,
+                        error=exc,
                     )
             else:
-                self.last_note = (
-                    "Se conservó el archivo ajeno que ya existía en "
-                    f"{self.launcher}."
+                self.last_note = i18n.t(
+                    "autostart.note.kept_launcher",
+                    path=self.launcher,
                 )
 
         if not removed_something:
-            message = "El inicio automático no estaba instalado."
+            message = i18n.t("autostart.note.not_installed")
             self.last_note = (
                 f"{self.last_note} {message}"
                 if self.last_note

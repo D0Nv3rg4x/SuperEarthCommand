@@ -1,5 +1,12 @@
 [general]
-activation_phrase = "modo democracia"
+# Idioma de la interfaz, la bandeja y los mensajes: "es", "en" o "auto".
+# "auto" sigue el idioma del sistema; si no hay traducción, usa inglés.
+language = "es"
+
+# Frase que activa la secuencia. Si se omite, se usa la del idioma:
+#   es -> "modo democracia"   en -> "democracy mode"
+# Si se deja vacía ("") se desactiva la voz.
+# activation_phrase = "modo democracia"
 
 [assets]
 wallpaper = "Assets/flagSuperEarth_upscalemedia-transformed (1).png"
@@ -29,7 +36,10 @@ restore_wallpaper_on_exit = true
 [voice]
 enabled = true
 recognition_engine = "vosk"
-model_path = "models/vosk-model-small-es-0.42"
+# Vacío usa el modelo del idioma activo:
+#   es -> models/vosk-model-small-es-0.42
+#   en -> models/vosk-model-small-en-us-0.15
+model_path = ""
 
 [steam]
 app_id = "553850"

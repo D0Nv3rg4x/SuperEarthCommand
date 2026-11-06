@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from core import i18n
+
 
 class WallpaperBackend:
     """Operaciones de fondo de pantalla que implementa cada plataforma."""
@@ -21,7 +23,7 @@ class WallpaperBackend:
 
     def unsupported_reason(self) -> str:
         """Explica por qué la función no está disponible."""
-        return f"El cambio de fondo no está disponible en {self.name}."
+        return i18n.t("platform.unsupported.base_wallpaper", name=self.name)
 
     def current_image(self) -> Path | None:
         """Devuelve la imagen de fondo actual, o None si no puede identificarla."""
@@ -79,4 +81,4 @@ class AutostartManager:
         return False, self.unsupported_reason()
 
     def unsupported_reason(self) -> str:
-        return f"El inicio automático no está disponible en {self.name}."
+        return i18n.t("platform.unsupported.base_autostart", name=self.name)

@@ -10,8 +10,13 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MODEL_PATH = "models/vosk-model-small-es-0.42"
-DEFAULT_ACTIVATION_PHRASE = "modo democracia"
+from core import i18n
+
+DEFAULT_MODEL_PATHS = {
+    "es": "models/vosk-model-small-es-0.42",
+    "en": "models/vosk-model-small-en-us-0.15",
+}
+DEFAULT_MODEL_PATH = DEFAULT_MODEL_PATHS["es"]
 
 
 def load_config(path: Path) -> dict:
@@ -37,6 +42,11 @@ def resolve_asset(
         path = Path(project_dir) / path
 
     return path.resolve()
+
+
+def path_is_missing(path: Path | None) -> bool:
+    """Indica si un recurso opcional fue configurado pero no existe."""
+    return path is not None and not path.is_file()
 
 
 @dataclass(frozen=True)
@@ -65,36 +75,34 @@ def prepare_assets(assets: dict, project_dir: Path) -> AssetSelection:
 
     if logo is None or not logo.is_file():
         raise FileNotFoundError(
-            "No se encontró el recurso obligatorio del logo.\n"
-            f"Ruta comprobada: {logo}"
+            i18n.t("config.error.logo_required", path=logo)
         )
 
     warnings: list[str] = []
 
     if wallpaper is None or not wallpaper.is_file():
         warnings.append(
-            "Advertencia: imagen de fondo no disponible: "
-            f"{wallpaper}. La aplicación continuará sin cambiar el fondo."
+            i18n.t("config.warning.wallpaper_missing", path=wallpaper)
         )
         wallpaper = None
 
-    optional = (
-        ("audio", audio),
-        ("icono de aplicación", app_icon),
-        ("sello del Ministerio", ministry_icon),
-    )
+    if path_is_missing(audio):
+        warnings.append(
+            i18n.t("config.warning.audio_missing", path=audio)
+        )
+        audio = None
 
-    for name, path in optional:
-        if path is not None and not path.is_file():
-            warnings.append(
-                f"Advertencia: no se encontró {name}: {path}"
-            )
-            if name == "audio":
-                audio = None
-            elif name == "icono de aplicación":
-                app_icon = None
-            else:
-                ministry_icon = None
+    if path_is_missing(app_icon):
+        warnings.append(
+            i18n.t("config.warning.app_icon_missing", path=app_icon)
+        )
+        app_icon = None
+
+    if path_is_missing(ministry_icon):
+        warnings.append(
+            i18n.t("config.warning.ministry_icon_missing", path=ministry_icon)
+        )
+        ministry_icon = None
 
     return AssetSelection(
         wallpaper=wallpaper,
@@ -129,15 +137,12 @@ def plan_wallpaper(
     warning = None
 
     if requested and not supported:
-        warning = (
-            "Advertencia: cambio de fondo desactivado. "
-            f"{unsupported_reason}"
+        warning = i18n.t(
+            "config.warning.wallpaper_unsupported",
+            reason=unsupported_reason,
         )
     elif requested and wallpaper is None:
-        warning = (
-            "Advertencia: cambio de fondo desactivado "
-            "porque falta la imagen."
-        )
+        warning = i18n.t("config.warning.wallpaper_no_image")
 
     return WallpaperPlan(
         enabled=enabled,
@@ -146,12 +151,21 @@ def plan_wallpaper(
     )
 
 
-def voice_model_path(voice_config: dict, project_dir: Path) -> Path:
-    """Resuelve el modelo de voz respecto a la carpeta del proyecto."""
-    value = voice_config.get("model_path", DEFAULT_MODEL_PATH)
+def voice_model_path(
+    voice_config: dict,
+    project_dir: Path,
+    language: str | None = None,
+) -> Path:
+    """Resuelve el modelo de voz respecto a la carpeta del proyecto.
+
+    Si `model_path` está vacío, se usa el modelo predeterminado del idioma
+    activo (o del indicado explícitamente).
+    """
+    value = voice_config.get("model_path")
 
     if not value:
-        value = DEFAULT_MODEL_PATH
+        code = language or i18n.get_language()
+        value = DEFAULT_MODEL_PATHS.get(code, DEFAULT_MODEL_PATH)
 
     path = Path(str(value)).expanduser()
 
@@ -167,11 +181,26 @@ def voice_engine(voice_config: dict) -> str:
     ).lower()
 
 
-def activation_phrase(general_config: dict) -> str:
-    value = general_config.get(
-        "activation_phrase", DEFAULT_ACTIVATION_PHRASE
-    )
-    return value if isinstance(value, str) else DEFAULT_ACTIVATION_PHRASE
+def activation_phrase(
+    general_config: dict,
+    language: str | None = None,
+) -> str:
+    """Frase de activación configurada o la predeterminada del idioma.
+
+    Una clave ausente usa la frase del idioma. Una clave presente y vacía
+    desactiva la voz, como se documenta en la configuración.
+    """
+    code = language or i18n.get_language()
+
+    if "activation_phrase" not in general_config:
+        return i18n.t_for(code, "voice.phrase")
+
+    value = general_config["activation_phrase"]
+
+    if isinstance(value, str):
+        return value
+
+    return i18n.t_for(code, "voice.phrase")
 
 
 def should_launch_game(sequence: dict, steam: dict) -> bool:

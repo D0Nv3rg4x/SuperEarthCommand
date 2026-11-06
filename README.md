@@ -1,4 +1,10 @@
 <p align="center">
+  <sub><strong>Idioma / Language:</strong>
+  <a href="docs/README_languages/README_es.md">Español</a> ·
+  <a href="docs/README_languages/README_en.md">English</a></sub>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/portada.png" alt="Modo Democracia — Comando de Super Tierra" width="100%">
 </p>
 
@@ -38,6 +44,7 @@ aún requiere hardware real.
 | Reconocimiento de voz en Linux | Implementado y probado con dispositivos simulados; **la frase con micrófono real sigue pendiente**. |
 | Inicio automático en Linux | Implementado; probado con un HOME temporal. **Falta comprobar el inicio real al cerrar y abrir sesión.** |
 | Windows y macOS | Implementados, **no probados en hardware real**. |
+| Idiomas español / inglés | Interfaz, bandeja, voz y mensajes traducidos; catálogos cubiertos por pruebas. **La frase con micrófono real sigue pendiente en ambos idiomas**. |
 | Secuencia, audio, bandeja y Steam | Implementados; audio y apertura de Steam pendientes de comprobación manual. |
 
 No debe interpretarse que Windows o macOS están soportados solo porque su
@@ -47,6 +54,8 @@ código exista. Consulta [`docs/PLATFORMS.md`](docs/PLATFORMS.md) y
 ## Capacidades del protocolo
 
 - Activación local por voz con Vosk; no se envía audio a servicios en la nube.
+- Interfaz, bandeja y mensajes en **español e inglés**; el idioma se elige en
+  `config.toml`.
 - Interfaz cinematográfica con barra de progreso, animaciones y minijuego de
   estratagemas.
 - Música local con desvanecimiento al abrir el juego.
@@ -130,6 +139,24 @@ La configuración vive en `config.toml`. Estas son las claves que más se usan:
 Las tablas completas y las combinaciones para desactivar funciones están en
 [`Troubleshooting.md`](Troubleshooting.md).
 
+## Idiomas
+
+El proyecto incluye **español** (`es`) e **inglés** (`en`):
+
+```toml
+[general]
+language = "es"   # "en" para inglés, "auto" para seguir al sistema
+```
+
+El idioma se aplica al arrancar y afecta a la interfaz, la bandeja, los avisos
+y el estado de la voz. También cambia la frase de activación predeterminada:
+`modo democracia` en español y `democracy mode` en inglés. La voz en inglés
+necesita su propio modelo de Vosk; consulta
+[`Troubleshooting.md`](Troubleshooting.md#idiomas).
+
+Para añadir otro idioma, copia `locales/es.json`, tradúcelo y guarda el archivo
+con el nuevo código. El resto de la aplicación lo detecta al iniciar.
+
 ## Inicio automático
 
 Es opcional y nunca se activa solo. En Linux, con el entorno virtual activado:
@@ -145,7 +172,7 @@ problemas.
 
 ## Pruebas
 
-La batería automatizada tiene **97 pruebas**:
+La batería automatizada tiene **120 pruebas**:
 
 ```sh
 bash scripts/ejecutar_pruebas.sh
@@ -157,6 +184,8 @@ Steam, bandeja y autostart tras cerrar sesión— están en
 
 ## Documentación
 
+- [`docs/README_languages/`](docs/README_languages/): presentación completa en
+  español e inglés.
 - [`Troubleshooting.md`](Troubleshooting.md): instalación detallada,
   configuración completa y resolución de problemas.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): módulos y flujo de arranque.

@@ -15,6 +15,8 @@ import subprocess
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from core import i18n
+
 from .base import WallpaperBackend
 
 PLASMA_COMMAND = "plasma-apply-wallpaperimage"
@@ -66,19 +68,13 @@ class KDEWallpaperBackend(WallpaperBackend):
             "kde" in desktop or "plasma" in desktop
             for desktop in desktops
         ):
-            return (
-                "El escritorio actual no es KDE Plasma. "
-                "No se asume compatibilidad con otros escritorios."
-            )
+            return i18n.t("platform.kde.not_kde")
 
         if os.environ.get("KDE_SESSION_VERSION", "").strip() != "6":
-            return "El cambio de fondo implementado requiere KDE Plasma 6."
+            return i18n.t("platform.kde.requires_plasma6")
 
         if cls._command() is None:
-            return (
-                "No se encontró plasma-apply-wallpaperimage. "
-                "Comprueba que Plasma Workspace esté instalado."
-            )
+            return i18n.t("platform.kde.command_missing")
 
         return ""
 
@@ -175,10 +171,7 @@ class KDEWallpaperBackend(WallpaperBackend):
         command = shutil.which(PLASMA_COMMAND)
 
         if not command:
-            return False, (
-                "No se encontró plasma-apply-wallpaperimage. "
-                "Comprueba que Plasma Workspace esté instalado."
-            )
+            return False, i18n.t("platform.kde.command_missing")
 
         try:
             result = subprocess.run(
@@ -189,14 +182,15 @@ class KDEWallpaperBackend(WallpaperBackend):
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            return False, f"No se pudo cambiar el fondo: {exc}"
+            return False, i18n.t("platform.kde.apply_failed", error=exc)
 
         if result.returncode != 0:
             details = (result.stderr or result.stdout).strip()
             return False, (
                 details
-                or "plasma-apply-wallpaperimage terminó con "
-                f"código {result.returncode}."
+                or i18n.t(
+                    "platform.kde.exit_code", code=result.returncode
+                )
             )
 
         return True, None

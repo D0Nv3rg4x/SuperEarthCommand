@@ -3,11 +3,14 @@
 
 import sys
 
+from core import i18n
+
+# El aviso de versión se muestra antes de importar Qt; se usa el idioma del
+# sistema como aproximación, porque todavía no se ha leído config.toml.
+i18n.set_language("auto")
+
 if sys.version_info < (3, 11):
-    print(
-        "Error: Modo Democracia requiere Python 3.11 o superior.",
-        file=sys.stderr,
-    )
+    print(i18n.t("app.error.python"), file=sys.stderr)
     raise SystemExit(1)
 
 import traceback
@@ -51,7 +54,6 @@ def main() -> int:
 
     app = QApplication(qt_args)
     app.setQuitOnLastWindowClosed(False)
-    app.setApplicationName("Modo Democracia")
     app.setOrganizationName("Super Earth")
 
     try:
@@ -61,6 +63,10 @@ def main() -> int:
         voice_config = config.get("voice", {})
         general_config = config.get("general", {})
         steam_config = config.get("steam", {})
+
+        # El idioma se fija antes de construir cualquier texto o ventana.
+        i18n.set_language(general_config.get("language"))
+        app.setApplicationName(i18n.t("app.name"))
 
         selection = prepare_assets(assets, PROJECT_DIR)
         for warning in selection.warnings:
@@ -97,8 +103,10 @@ def main() -> int:
             )
             if not recovered:
                 print(
-                    "Advertencia: recuperación del fondo pendiente: "
-                    f"{recovery_error}",
+                    i18n.t(
+                        "app.warning.wallpaper_recovery",
+                        error=recovery_error,
+                    ),
                     file=sys.stderr,
                 )
 
@@ -132,13 +140,15 @@ def main() -> int:
             app,
         )
         tray_icon.setToolTip(
-            "Modo Democracia · preparando reconocimiento de voz"
+            i18n.t(
+                "voice.tooltip.preparing", app=i18n.t("app.name")
+            )
         )
 
         tray_menu = QMenu()
 
         status_action = QAction(
-            "Reconocimiento de voz: iniciando…",
+            i18n.t("voice.status.tray_starting"),
             tray_menu,
         )
         status_action.setEnabled(False)
@@ -146,14 +156,14 @@ def main() -> int:
         tray_menu.addSeparator()
 
         show_action = QAction(
-            "Mostrar Modo Democracia",
+            i18n.t("app.tray.show"),
             tray_menu,
         )
         show_action.triggered.connect(window.show_from_tray)
         tray_menu.addAction(show_action)
 
         exit_action = QAction(
-            "Salir de Modo Democracia",
+            i18n.t("app.tray.exit"),
             tray_menu,
         )
         exit_action.triggered.connect(window.exit_application)
@@ -175,7 +185,7 @@ def main() -> int:
             tray_icon.show()
         else:
             print(
-                "Advertencia: KDE no informa una bandeja del sistema disponible.",
+                i18n.t("app.tray.unavailable"),
                 file=sys.stderr,
             )
 
@@ -187,8 +197,8 @@ def main() -> int:
             phrase = activation_phrase(general_config)
 
             if engine != "vosk":
-                voice_problem = (
-                    "Motor de voz no compatible; se esperaba 'vosk'."
+                voice_problem = i18n.t(
+                    "voice.error.engine_unsupported"
                 )
             else:
                 model_path = voice_model_path(
@@ -203,31 +213,39 @@ def main() -> int:
                 except Exception as exc:
                     # Una configuración inesperada no debe impedir el inicio.
                     voice_ready = False
-                    voice_problem = (
-                        "No se pudo comprobar el reconocimiento de voz: "
-                        f"{type(exc).__name__}: {exc}"
+                    voice_problem = i18n.t(
+                        "voice.error.check_failed",
+                        detail=f"{type(exc).__name__}: {exc}",
                     )
 
             if not voice_ready:
                 # La voz es opcional: se informa y la aplicación continúa
                 # con la interfaz, el audio, el fondo y el lanzamiento.
-                voice_problem = voice_problem or "Voz no disponible."
+                voice_problem = voice_problem or i18n.t(
+                    "voice.error.unavailable"
+                )
                 print(
-                    "Advertencia: reconocimiento de voz desactivado. "
-                    f"{voice_problem}",
+                    i18n.t(
+                        "app.warning.voice_disabled",
+                        problem=voice_problem,
+                    ),
                     file=sys.stderr,
                 )
                 window.on_voice_disabled(voice_problem)
                 status_action.setText(
-                    "Reconocimiento de voz: desactivado"
+                    i18n.t("voice.status.tray_disabled")
                 )
                 tray_icon.setToolTip(
-                    "Modo Democracia · reconocimiento de voz desactivado"
+                    i18n.t(
+                        "voice.tooltip.disabled",
+                        app=i18n.t("app.name"),
+                    )
                 )
             else:
                 voice_listener = VoiceListener(
                     phrase=phrase,
                     model_path=model_path,
+                    display_phrase=phrase,
                     parent=window,
                 )
 
@@ -244,7 +262,11 @@ def main() -> int:
                 )
                 voice_listener.status_changed.connect(
                     lambda message: tray_icon.setToolTip(
-                        f"Modo Democracia · {message}"
+                        i18n.t(
+                            "voice.tooltip.active",
+                            app=i18n.t("app.name"),
+                            status=message,
+                        )
                     )
                 )
                 voice_listener.error_occurred.connect(
@@ -252,24 +274,31 @@ def main() -> int:
                 )
                 voice_listener.error_occurred.connect(
                     lambda message: status_action.setText(
-                        "Reconocimiento de voz: error"
+                        i18n.t("voice.status.tray_error")
                     )
                 )
                 voice_listener.error_occurred.connect(
                     lambda message: tray_icon.setToolTip(
-                        "Modo Democracia · "
-                        "reconocimiento de voz no disponible"
+                        i18n.t(
+                            "voice.tooltip.unavailable",
+                            app=i18n.t("app.name"),
+                        )
                     )
                 )
 
                 window.voice_listener = voice_listener
         else:
             window.on_voice_disabled(
-                "El reconocimiento de voz está desactivado en config.toml."
+                i18n.t("voice.notice.disabled")
             )
-            status_action.setText("Reconocimiento de voz: desactivado")
+            status_action.setText(
+                i18n.t("voice.status.tray_disabled")
+            )
             tray_icon.setToolTip(
-                "Modo Democracia · reconocimiento de voz desactivado"
+                i18n.t(
+                    "voice.tooltip.disabled",
+                    app=i18n.t("app.name"),
+                )
             )
 
         def stop_voice_listener() -> None:
@@ -278,7 +307,7 @@ def main() -> int:
                 return
             if not voice_listener.stop():
                 print(
-                    "Advertencia: el hilo de voz no terminó a tiempo.",
+                    i18n.t("app.warning.voice_thread"),
                     file=sys.stderr,
                 )
 
@@ -297,17 +326,18 @@ def main() -> int:
         if voice_listener is not None:
             voice_listener.start()
 
-        print("Modo Democracia se ha iniciado correctamente.")
+        print(i18n.t("app.startup.ok"))
         return app.exec()
 
     except Exception as exc:
         traceback.print_exc()
         QMessageBox.critical(
             None,
-            "Error al iniciar Modo Democracia",
-            "No se pudo iniciar la aplicación.\n\n"
-            f"{type(exc).__name__}: {exc}\n\n"
-            "Consulta la terminal para ver el detalle del error.",
+            i18n.t("app.error.start_title"),
+            i18n.t(
+                "app.error.start_body",
+                detail=f"{type(exc).__name__}: {exc}",
+            ),
         )
         return 1
 
